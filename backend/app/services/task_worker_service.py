@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -49,10 +50,32 @@ class TaskWorkerService:
         try:
             input_assets = self._load_input_assets(db, task.id)
             input_paths = [Path(asset.absolute_dir) / asset.stored_name for asset in input_assets]
+            start_log = {
+                "task_id": task.id,
+                "api_key_id": task.api_key_id,
+                "prompt_preview": task.prompt[:300],
+                "negative_prompt_preview": task.negative_prompt[:300] if task.negative_prompt else None,
+                "input_image_count": len(input_paths),
+                "input_images": [str(path) for path in input_paths],
+            }
+            print(
+                f"[TaskWorkerService] provider call start: "
+                f"{json.dumps(start_log, ensure_ascii=False)}"
+            )
             result = await provider.generate_image(
                 prompt=task.prompt,
                 negative_prompt=task.negative_prompt,
                 input_images=input_paths,
+            )
+            end_log = {
+                "task_id": task.id,
+                "provider": result.provider,
+                "remote_url": result.remote_url,
+                "raw_content_preview": result.raw_content[:1000],
+            }
+            print(
+                f"[TaskWorkerService] provider call end: "
+                f"{json.dumps(end_log, ensure_ascii=False)}"
             )
             async with httpx.AsyncClient(timeout=120.0) as client:
                 remote = await client.get(result.remote_url)
@@ -99,6 +122,15 @@ class TaskWorkerService:
             return task
         except Exception as exc:
             db.rollback()
+            error_log = {
+                "task_id": task.id,
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+            }
+            print(
+                f"[TaskWorkerService] provider call failed: "
+                f"{json.dumps(error_log, ensure_ascii=False)}"
+            )
             if isinstance(exc, AppError):
                 task.error_message = exc.detail
             else:

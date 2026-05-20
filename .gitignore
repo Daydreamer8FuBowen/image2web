@@ -1,1 +1,17 @@
 script/
+
+# Local environment files
+backend/.env
+frontend/.env*
+
+# Runtime data
+backend/data/
+data/
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Frontend build output
+frontend/dist/
