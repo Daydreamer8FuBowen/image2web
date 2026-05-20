@@ -46,6 +46,17 @@ export function getAdminKey() {
   return window.localStorage.getItem(ADMIN_KEY_STORAGE) || ''
 }
 
+function joinUrlSegments(baseUrl: string, path: string) {
+  const normalizedBase = baseUrl.replace(/\/+$/, '')
+  const normalizedPath = path.replace(/^\/+/, '')
+
+  if (!normalizedBase) {
+    return `/${normalizedPath}`
+  }
+
+  return `${normalizedBase}/${normalizedPath}`
+}
+
 export function resolveAssetUrl(url?: string | null) {
   if (!url) {
     return ''
@@ -55,5 +66,19 @@ export function resolveAssetUrl(url?: string | null) {
     return url
   }
 
-  return new URL(url, env.apiBaseUrl).toString()
+  const apiBaseUrl = env.apiBaseUrl.trim()
+
+  if (!apiBaseUrl) {
+    return url
+  }
+
+  if (apiBaseUrl.startsWith('/')) {
+    return joinUrlSegments(apiBaseUrl, url)
+  }
+
+  if (typeof window !== 'undefined') {
+    return joinUrlSegments(new URL(apiBaseUrl, window.location.origin).toString(), url)
+  }
+
+  return joinUrlSegments(apiBaseUrl, url)
 }
